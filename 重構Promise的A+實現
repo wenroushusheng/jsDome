@@ -1,0 +1,492 @@
+// 責任鏈與策略的結合模式
+// 策略模式
+class Validator {
+  constructor() {
+    this.cache = [];
+  }
+  add(...fns) {
+    cache.push(...fns);
+    return this;
+  }
+  run(...args) {
+    let res;
+    cache.some(rule => res = rule(...args));
+    return res;
+  }
+}
+// 責任鏈
+Function.prototype.after = function (fn, next = false) {
+  const self = this;
+  return function (...args) {
+    const result = self.apply(this, args);
+    if (result === next) {
+      return fn.apply(this, args);
+    }
+    return result;
+  }
+}
+const empty = Object.create(null);
+// 此処使用定時器
+const microTask = fn => setTimeout(() => fn(), 0);
+
+const defaulfFn = function (resolveCb, rejectCb) {
+  resolveCb = (typeof resolveCb == 'function') ?
+    resolveCb :
+    value => value;
+  rejectCb = (typeof rejectCb == 'function') ?
+    rejectCb :
+    reason => { throw reason; };
+}
+
+const detectValueType = function () {
+  const strategyMap = new Map();
+  strategyMap.set(
+    "instancePro",
+    obj =>
+      obj instanceof FakePromise &&
+      "promiseInstance"
+  );
+  strategyMap.set(
+    "duck",
+    value =>
+      (
+        value !== null &&
+        (typeof value === 'object' ||
+          typeof value === 'function'
+        )
+      ) &&
+      "promiseDunk"
+  );
+  strategyMap.set(
+    "ordinary",
+    () => ""
+  );
+  return strategyMap;
+}();
+
+// 獲取值的類型
+const getValueType = value => {
+  for (let type of detectValueType) {
+    const ret = type(value);
+    if (ret != false) {
+      return ret;
+    }
+  }
+}
+
+class FakePromise {
+  constructor(executor) {
+    if (typeof executor !== 'function') {
+      throw new TypeError(`當前提案的參數： ${executor} 不是一個函數`);
+    }
+
+    this.value = null;
+    this.state = FakePromise.status["PENDING"];
+    this.onFulfilledCbs = []
+    this.onRejectedCbs = []
+
+    try {
+      executor(this.resolve.bind(this), this.reject.bind(this));
+    } catch (e) {
+      this.reject(e);
+    }
+  }
+
+  resolve(value) {
+
+    handleValue(this, value);
+
+    if (this === value) {
+      return this.reject(new TypeError('检测到promise的死循环'))
+    }
+
+    if (value instanceof Promise) {
+      return value.then(resolve, reject)
+    }
+    // resolve解析thenable对象是ES6的功能，非Promise/A+規範
+    if ((
+      (typeof value === 'object' && value !== null) ||
+      typeof value === 'function') &&
+      typeof value.then === 'function'
+    ) {
+      return microTask(() => {
+        try {
+          value.then(resolve, reject)
+        } catch (error) {
+          this.reject(error)
+        }
+      })
+    }
+
+    FakePromise.stateChange(this, FakePromise.status['FULFILLED'], value);
+  }
+
+  reject(reason) {
+    FakePromise.stateChange(this, FakePromise.status['REJECTED'], reason);
+  }
+
+  // 在提案狀態改變時執行
+  static stateChange(promise, state, value) {
+    if (promise.state === FakePromise.status['PENDING']) {
+      promise.state = state;
+      promise.value = value
+      promise.onRejectedCbs.forEach(fn => fn(value));
+      promise.onFulfilledCbs.length = 0; // 成功回调
+      promise.onRejectedCbs.length = 0; // 失败回调
+    }
+  }
+
+  then(onFulfilled, onRejected) {
+    defaulfFn(onFulfilled, onRejected);
+    let thenPromise = FakePromise.defer();
+    this.addThenCb(onFulfilled, onRejected, thenPromise);
+    //該新提案的狀態由回調函數的返回值決定 
+    return thenPromise.promise;
+  }
+
+  // 不同狀態下添加回調函數
+  addThenCb(onFulfilled, onRejected, thenPromise) {
+    // 獲取封裝下次隊列執行的函數
+    const nextTick = FakePromise.nextTick.bind(empty, thenPromise);
+    // 不同狀態下回調函數的執行時機
+    const Cb = getCb(onFulfilled, onRejected);
+
+    const addCb = state => Cb[state]();
+
+    addCb(this.state);
+
+    function getCb() {
+      let stste = this.state
+      let ret = Number(stste !== FakePromise.status['PENDING']);
+
+      return cbStyleList[ret]();
+    }
+
+    const cbStyleList = {
+      // 已決的直接添加到任務隊列末尾
+      [FakePromise.status['PENDING']]: (cb, value) => {
+        nextTick(cb, this.value);
+      },
+      [FakePromise.status['PENDING']]: () => {
+        nextTick(onRejected, this.value);
+      },
+      // 未決的添加到提案回調函數隊列
+      [FakePromise.status['PENDING']]: (value) => {
+        this.onFulfilledCbs.push(value => {
+          nextTick(onFulfilled, value);
+        });
+        this.onRejectedCbs.push(reason => {
+          nextTick(onRejected, reason);
+        });
+      }
+    }
+  }
+  // 封裝回調函數，總是異步執行
+  static nextTick(thenPromise, thenCb, value) {
+    const runThenCb = () => {
+      try {
+        // 根據此回調函數的返回值處理then生成的提案
+        FakePromise.handleValue(
+          thenPromise,
+          thenCb(value)
+        );
+      } catch (e) {
+        thenPromise.reject(e);
+      }
+    }
+    microTask(runThenCb);
+  }
+
+  // 處理回調函數的返回值
+  // 不斷展開返回值，直到為一個普通值：非提案、非提案鴨子 
+  static handleValue(promise, value) {
+
+    if (promise.promise === value) {
+      promise.reject(new TypeError('检测到promise的死循环'));
+    }
+
+    let called = false;  // 確保只調用一次
+    const then = value.then;
+
+    const valueType = getValueType(value);
+
+    const        // 不同返回值對應的處理形式
+      handleList = {
+        promiseInstance: () => handlePromise(false),
+        promiseDunk: () => {
+          try {
+            if (typeof then === 'function') {
+              handlePromise(true);
+            } else {
+              handleUnPromise('resolve', value, false);
+            }
+          } catch (e) {
+            handleUnPromise('reject', e, true);
+          }
+        },
+        ordinaryValue: () => handleUnPromise("resolve", value, false)
+      };
+
+    const    // 返回值的處理形式
+      handleUnPromise = ((newPromise) => {
+        const     // 對返回值對新提案的影響
+          hanldeNewPromise = {
+            hanleAgain: FakePromise.handleValue.bind(null, newPromise),
+            resolve: newPromise.resolve,
+            reject: newPromise.reject
+          };
+
+        return (handle, value, isOnce = true) => {
+          if (isOnce) {
+            if (called) return;
+            called = true;
+          }
+          hanldeNewPromise[handle](value);
+        }
+      })(promise),
+
+      handlePromise = isOnce => {
+        then.call(thenValue,
+          value => {
+            handleUnPromise("hanleAgain", value, isOnce);
+          },
+          reason => {
+            handleUnPromise("reject", reason, isOnce);
+          });
+      };
+
+    const    // 啓動處理
+      run = (handle, type, value) => handle[type(value)]();
+
+    run(handleList, valueType, value);
+
+  }
+
+  catch(onRejected) {
+    return this.then(null, onRejected);
+  }
+
+  static defer() {
+    let dfd = {}
+    dfd.promise = new FakePromise((resolve, reject) => {
+      dfd.resolve = resolve;
+      dfd.reject = reject;
+    });
+    return dfd;
+  }
+
+  static reject(v) {
+    return new FakePromise((y, n) => n(v));
+  }
+
+  static resolve(v) {
+    // 需要展開值
+    // 1、 直接調用then方法
+    // return new Promise(y => y()).then(() => v);
+    //  2、把在展開值的功能獨立封裝
+  }
+
+  static none(iterable) {
+    return new FakePromise((resolve, reject) => {
+      let index = 0;
+      for (const promise of iterable) {
+        const currentIndex = index;
+        promise.then(
+          v => {
+            if (isEnd) { return; }
+            isEnd = true;
+            resolve(v);
+          },
+          e => {
+            if (isEnd) { return; }
+            reject[currentIndex] = e;
+            elementCount++;
+            (elementCount == result.length) && reject(result);
+          }
+        );
+        index++;
+      }
+
+      if (index == 0) {
+        resolve([]);
+      }
+
+      let elementCount = 0;
+      let isEnd = false;
+      const result = new Array(index);
+    });
+  }
+
+  static last(iterable) {
+    return new FakePromise((resolve, rejecr) => {
+      let index = 0;
+      let elementCount = 0;
+
+      for (const promise of iterable) {
+        promise.then(
+          v => {
+            elementCount++;
+            (index == elementCount) && resolve(v);
+          },
+          e => {
+            elementCount++;
+            (index == elementCount) && rejecr(e);
+          }
+        );
+        index++;
+      }
+
+      if (index == 0) {
+        resolve();
+      }
+    });
+
+  }
+
+  static first(iterable) {
+    return new FakePromise(function (resolve, reject) {
+      let index = 0;
+      for (const promise of iterable) {
+        promise.then(v => {
+          if (isEnd) { return; }
+          isEnd = true;
+          resolve(v);
+        });
+        index++;
+      }
+
+      if (index == 0) {
+
+      }
+
+      let isEnd = false;
+
+    });
+  };
+
+  static race(iterable) {
+    return new FakePromise((resolve, reject) => {
+      let index = 0;
+      for (const promise of iterable) {
+        promise.then(
+          (value) => {
+            if (isEnd) { return; }
+            isEnd = true;
+            resolve(value);
+          },
+          (err) => {
+            if (isEnd) { return; }
+            isEnd = true;
+            reject(err);
+          });
+        index++;
+      }
+
+      if (index === 0) {
+        // 該提案永遠不會有結果
+      }
+      let isEnd = false;
+
+    });
+  }
+
+  static all(iterable) {
+    return new FakePromise((resolve, reject) => {
+      let index = 0;
+
+      for (const promise of iterable) {
+        const currentIndex = index;
+        promise.then(
+          (value) => {
+            if (anErrorOccurred) { return; }
+            result[currentIndex] = value;
+            elementCount++;
+            if (elementCount === result.length) {
+              resolve(result);
+            }
+          },
+          (err) => {
+            if (anErrorOccurred) { return; }
+            anErrorOccurred = true;
+            reject(err);
+          });
+        index++;
+      }
+
+      if (index === 0) {
+        resolve([]); // 該提案會立即變為通過狀態
+        return;
+      }
+
+      let elementCount = 0;
+      let anErrorOccurred = false;
+      const result = new Array(index);
+    });
+
+  }
+
+}
+
+// ES6規範中沒有靜態屬性,但瀏覽器自己實現了靜態屬性
+FakePromise.status = {
+  PENDING: 'pending',
+  FULFILLED: 'fulfilled',
+  REJECTED: 'reject'
+};
+
+new FakePromise((resolve, reject) => {
+  throw new Error('You write wrong')
+  // console.log('2')
+  resolve(1)
+})
+  .then(
+    value => {
+      return new FakePromise((resolve) => {
+        resolve(new FakePromise((resolve, reject) => {
+          reject('333')
+        })
+        )
+      })
+    },
+    reason => {
+      console.log('reason~~~~:', reason);
+      return 9999
+    }
+  )
+  .then(
+    value => {
+      console.log('then 2 value:', value)
+    },
+    reason => {
+      console.log('reason:::', reason)
+    }
+  )
+
+
+var p1 = new Promise(function (resolve, reject) {
+  resolve(new Promise(res => res('resolve')));
+});
+
+var p2 = new Promise(function (resolve, reject) {
+  // 将resolve实参promise的状态变为自己的状态，将实参promise的值变为自己的值
+  resolve(new Promise((res, rej) => { rej('reject') }));
+});
+
+var p3 = new Promise(function (resolve, reject) {
+  reject(new Promise(res => res('resolve')));
+});
+
+p1.then(
+  function fulfilled(value) { console.log('p1 fulfilled: ' + value); },
+  function rejected(err) { console.log('p1 rejected: ' + err); }
+);
+
+p2.then(
+  function fulfilled(value) { console.log('p2 fulfilled: ' + value); },
+  function rejected(err) { console.log('p2 rejected: ' + err); }
+);
+
+p3.then(
+  function fulfilled(value) { console.log('p3 fulfilled: ' + value); },
+  function rejected(err) { console.log('p3 rejected: ' + err); }
+);
