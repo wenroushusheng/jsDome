@@ -1,0 +1,96 @@
+var event = (function () {
+  var IE876 = window.addEventListener ? false : true;
+  // 逻辑实现
+  var listener = function (ele, type, fn) {
+    if (IE876) {
+      listener = function (ele, type, fn) {
+        ele.addEventListener(type, fn, false);
+      }
+    } else {
+      listener = listenerIE;
+    }
+    listener(ele, type, fn);
+  }
+
+  var remove = function (ele, type, fn) {
+    if (IE876) {
+      remove = function (ele, type, fn) {
+        ele.removeEventListener(type, fn);
+      }
+    } else {
+      remove = removeIE;
+    }
+    remove(ele, type, fn);
+  }
+
+  return {
+    listener: listener,
+    remove: remove
+  }
+
+  // 工具函数
+  function listenerIE(ele, type, fn) {
+    var eListenerCbs = initEvent(ele, type);
+    var i = 0,
+      cb;
+    while (cb = eListenerCbs[i]) {
+      if (cb == fn) return;
+      i++;
+    }
+    eListenerCbs.push(fn);
+  }
+
+  function initEvent(ele, type) {
+    if (!ele["eListener" + type]) {
+      ele["eListener" + type] = [];
+      ele.attachEvent(
+        "on" + type,
+        function () {
+          eventRun.call(ele);
+        }
+      );
+    }
+    return ele["eListener" + type];
+  }
+
+  function removeIE(ele, type, fn) {
+    var arrEvent = ele["eListener" + type],
+      i = 0,
+      len = arrEvent.length;
+    if (arrEvent && len) {
+      for (; i < len; i++) {
+        if (arrEvent[i] == fn) {
+          return arrEvent.splice(i, 1);
+        }
+      }
+    }
+  }
+
+  function eventRun() {
+    e = eventDeal(window.event);
+    var ary = this["eListener" + e.type];
+    var i = 0,
+      fn;
+    while (fn = ary[i]) {
+      if (typeof fn === "function") {
+        fn.call(this, e);
+        i++;
+      } else {
+        ary.splice(i, 1);
+      }
+    }
+  }
+
+  function eventDeal(e) { //不需要額外解决IE兼容性
+    e.target = e.srcElement;
+    e.pageX = (document.documentElement.scrollLeft ||
+      document.body.scrollLeft) + e.clientX;
+    e.pageY = (document.documentElement.scrollTop ||
+      document.body.scrollTop) + e.clientY;
+    e.stopPropagation = function () { e.cancelBubble = true; }
+    e.preventDefault = function () { e.returnValue = false; }
+    return e;
+  }
+
+})();
+
