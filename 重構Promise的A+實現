@@ -76,8 +76,8 @@ const FakePromise = (function () {
         // 需要展开提案值，暂时先用then去处理
         //  return  new FakePromise(y => y(v)).then();
         let deferPromiseObj = getNewPromise();
-        return resolveValue(v, deferPromiseObj);
-
+       resolveValue(v, deferPromiseObj);
+       return deferPromiseObj.promise
       }
       FakePromise.none = function () {
         return new FakePromise((resolve, reject) => {
