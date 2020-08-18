@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    #date-picker {
+      display: inline-block;
+      z-index: 2;
+    }
+
+    .picker-input {
+      position: relative;
+      display: inline-block;
+    }
+
+    .picker-input input {
+      height: 40px;
+      width: 80px;
+      line-height: 40px;
+      padding: 0 0 0 50px;
+      outline: none;
+      border: 1px solid rgb(220, 238, 238);
+      color: #606266;
+      border-radius: 4px;
+    }
+
+    .picker-input .picker-prefix {
+      position: absolute;
+      display: inline-block;
+      width: 40px;
+      height: 30px;
+      line-height: 30px;
+      text-align: center;
+      top: 7px;
+      font-size: 15px;
+    }
+
+    .calendar {
+      position: absolute;
+      background-color: #ffffff;
+      width: 320px;
+      height: 320px;
+      margin-top: 5px;
+      border: 1px solid palegoldenrod;
+      border-radius: 4px;
+      box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+      user-select: none;
+    }
+
+    .calendar .header {
+      padding-top: 6px;
+      padding-left: 0;
+      padding-bottom: 10px;
+      margin: 12px 0px 0px 10px;
+      list-style: none;
+      height: 15px;
+    }
+
+    .calendar .header>li {
+      float: left;
+      margin: 0px 13px;
+      width: 16px;
+      height: 16px;
+    }
+
+    .calendar ul>.picker-date {
+      line-height: 15px;
+      width: 100px;
+    }
+
+    .calendar .picker-btn {
+      cursor: pointer;
+      background-repeat: no-repeat;
+    }
+
+    .calendar .content {
+      padding: 0 10px 0 10px;
+      color: #606266;
+
+    }
+
+    .calendar .picker-weeks {
+      padding-left: 0;
+      margin-top: 0;
+      height: 40px;
+      line-height: 40px;
+      border-bottom: 1px solid #ebeef5;
+      list-style: none;
+      margin-bottom: 0;
+    }
+
+    .calendar .picker-weeks li {
+      float: left;
+      width: 30px;
+      height: 30px;
+      line-height: 30px;
+      margin: 4px 6px;
+      text-align: center;
+    }
+
+    .calendar .picker-days {
+      list-style: none;
+      padding: 0;
+      margin: 5px 0 0 0;
+    }
+
+    .calendar .picker-days li {
+      float: left;
+      width: 30px;
+      height: 30px;
+      line-height: 30px;
+      margin: 3px 6px;
+      text-align: center;
+      font-size: 18px;
+      cursor: pointer;
+
+    }
+
+    .calendar .picker-weeks li {
+      font-size: 16px;
+    }
+
+    .calendar .picker-days li:hover {
+      color: #409eff;
+    }
+
+    .calendar .picker-days li.is-today {
+      color: #409eff;
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .calendar .picker-days li.is-select {
+      background-color: #409eff;
+      color: #fff;
+      border-radius: 50%;
+    }
+
+    .calendar .picker-days li.other-month {
+      color: #c0c4cc;
+    }
+
+
+    #app {
+      margin: 50px 50px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="date-picker">
+  </div>
+
+  <script>
+    // 嬾加載
+    // 參數 1、目標元素的ID  ：要求： display: inline-block;  明確該選擇器的可點擊的範圍      z-index: 2; 選擇模板不被遮蓋
+    // 參數 2、 完成修改後的回調函數，默認傳入修改後的日期字符串 格式：2020-8-9
+    // 參數 3、選擇日期後 自動關閉，默認手動關閉
+
+    function eventListener(el, event, cb) {
+      if (window.addEventListener) {
+        eventListener = function () {
+          el.addEventListener(event, cb, false);
+        }
+      } else {
+        eventListener = function () {
+          el.attachEvent('on' + event, cb);
+        }
+      }
+      eventListener(el, event, cb);
+    }
+
+    function getTarget(event) {
+      event = event || window.event;
+      return event.target || event.srcElement;
+    }
+
+    function hasClassName(target, name) {
+      return target.className.includes(name);
+    }
+
+    var Calender = function (el, cb) {
+      this.el = document.getElementById(el);
+      this.cb = cb;
+      this.today = new Date();
+      this.chooseDay = this.getChooseDay(this.today);
+      this.renderPickerInput();
+
+      this.hasPanel = false;
+      this.showPanel = false;
+      this.showDaysArr = undefined;
+      var
+        year = this.today.getFullYear(),
+        month = this.today.getMonth(),
+        day = this.today.getDate();
+      this.showDate = {
+        year: year,
+        month: month,
+        day: day
+      };
+    };
+
+    Calender.prototype.run = function () {
+      this.handle();
+      this.cb && this.cb(this.chooseDay);
+    };
+
+    Calender.prototype.getShowDate = function (date) {
+
+      return {
+        year: date.getFullYear(),
+        month: date.getMonth(),
+        day: date.getDate()
+      }
+
+    };
+
+    Calender.prototype.getChooseDay = function (date) {
+      if (date instanceof Date) {
+        return date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + date.getDate();
+      }
+      return date.year + "-" + (date.month + 1) + "-" + date.day;
+    }
+
+    Calender.prototype.renderPickerInput = function () {
+
+      this.el.innerHTML = '<div class="picker-input">' +
+        '<span class="picker-prefix">時間</span>' +
+        '<input type="text" value = "' + this.chooseDay + '">' +
+        '</div>'
+    };
+
+    Calender.prototype.handle = function () {
+
+      var self = this;
+      eventListener(this.el, 'click', handleFn);
+
+      function handleFn(e) {
+        var target = getTarget(e);
+        //   isElSon = self.el.contains(target);
+        // if (!isElSon && self.hasPanel && self.showPanel) {
+        //   self.changePanel(false);
+        //   return;
+        // }
+
+        // 開關面板
+        self.hasPanel || self.bulidPanel(); //創建面板 
+        self.showPanel || self.changePanel(true); //打開面板
+        // 修改年月
+        var isBtn = hasClassName(target, "picker-btn");
+        var isNext = hasClassName(target, "next");
+        if (isBtn) {
+
+          var isYear = hasClassName(target, "-year");
+          if (isYear) {
+            self.handleYear(isNext);
+            return;
+          }
+
+          var isMontn = hasClassName(target, "-month");
+          if (isMontn) {
+            self.handleMonth(isNext);
+            return;
+          }
+        }
+        var isDays = hasClassName(target.parentNode, "picker-days");
+        if (isDays) {
+          self.handleDay(target.getAttribute("day-index"));
+          return;
+        }
+      };
+    };
+
+    Calender.prototype.bulidPanel = function () {
+      this.hasPanel = true;
+      this.bulidMoreFn();
+      this.el.innerHTML += (this.template.pickerCalender);
+      this.renderDate();
+    };
+
+    Calender.prototype.bulidMoreFn = function () {
+
+      Calender.prototype.template = {
+        get url1() {
+          return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQEAYAAABPYyMiAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAAAZiS0dEAAAAAAAA+UO7fwAAAAlwSFlzAAAASAAAAEgARslrPgAAAkJJREFUSMfFk11IU2EYx5930w03wd6zPkgWUUyIILpbjajhYH3oRIgVrm660JI8GeJRdOhQc4E0C5bnPS5hkQizGPtAVJqgRTeCUnSxir3HLmrUVUUX84tjp5u2i27OVuj+d+/F//39ngceBAVmzyXemXSWl0sPUEz7KRKBpDwBlxcXf5xraTBxHo9SH18khynr9aI1wABWq6pQ8JYJVWp1MzNQAk9gzWKB02o9eGdnlfpMVLgieoaG0Avg4LbbDQAhgHBYEbzPfm/8bbtej1lipK8XFvAr0knZTMYQ5ydFX3V1vhMzDCGUyrJBR8yitrtbEbw/EAh8adLpcuAYSVP/6qqhUbCv7LXZth98h3ylwfl5ZoRM04/r69gxal65XlOzc+B+UimqNzYwJsdT7bW1Ow7e9Zgfo2xd3baBcx8sESLemJvLgd8LD1M/HQ7FHhY6aaKrKwvGIYLFKMflDf4TFWpEHtkiSfANWKhCSJX+dRYEjUaxSeQxlJGk7BOdQmqYyKP3d4xt909+Hi4rw2lSIpoTCeYCaaCsJGEb7089crkUN/GcnxR9AwPZTTCtgo8e6u0tWATAf56yWi0jkKPimampIoo8e5p0ajT4KrlJ38Xj/y0yQqZTyZ6efxfhBDsdj8WKLzJMwpSNRosvEiKYnohEmFZyVzyyuWlo4ytEV329oggn2GnV4GDubPvJemq5owMVLhIYXV4qLWU+bB2r2B0MQkQ+iF5mMt/dLUbTteZmRRGZl6nc1we30AF4Y7X+Bqbslhybpqf7AAAAJXRFWHRkYXRlOmNyZWF0ZQAyMDIwLTA3LTA2VDIxOjIyOjI0KzA4OjAwBoz7CAAAACV0RVh0ZGF0ZTptb2RpZnkAMjAyMC0wNy0wNlQyMToyMjoyNCswODowMHfRQ7QAAABRdEVYdHN2ZzpiYXNlLXVyaQBmaWxlOi8vL2hvbWUvYWRtaW4vaWNvbi1mb250L3RtcC9pY29uX2p6Yzc2b3cwM2UvamlhbnRvdWZhbnhpYW5nLnN2ZyNSodkAAAAASUVORK5CYII=';
+        },
+        get url2() {
+          return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQEAYAAABPYyMiAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAAAZiS0dEAAAAAAAA+UO7fwAAAAlwSFlzAAAASAAAAEgARslrPgAAAPJJREFUSMdjYBgFVAOTPG7nsLMLSU79dft0cjKxupioZnES82KGs+vWMXxh/McgaWlJBwesWnk1hI1NaBPrLsZ5q1czMDP6Mfz+9OndZ5FNKtLp6ZR7jKDF05nucG3aJJQ6zfK2yfLlDAyrVv3/z8w8HC2GAMF9087ftjt1SsBt2vvbDGvXMjDU////n4niNES0Af9kGX/9s12+nEmCoZgxw8iIb4HUrDu5ioo09zlGSCyfJnhnfXi4UNy0pDsZ9++Lhk4NuVOgojLqkAF3iMCmaU63L8XECHlO17idc+kS3R0AA6KhU0OuhvDwDJgDhhwAAJpCdi9IsRrNAAAAJXRFWHRkYXRlOmNyZWF0ZQAyMDIwLTA3LTA2VDIxOjI1OjU4KzA4OjAwKTWDHAAAACV0RVh0ZGF0ZTptb2RpZnkAMjAyMC0wNy0wNlQyMToyNTo1OCswODowMFhoO6AAAABSdEVYdHN2ZzpiYXNlLXVyaQBmaWxlOi8vL2hvbWUvYWRtaW4vaWNvbi1mb250L3RtcC9pY29uX3NhOWJoNGE4bWYvaWNvbnlvdWppYW50b3VfMS5zdmdaEF8FAAAAAElFTkSuQmCC';
+        },
+        get url3() {
+          return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQEAYAAABPYyMiAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAAAZiS0dEAAAAAAAA+UO7fwAAAAlwSFlzAAAASAAAAEgARslrPgAAARNJREFUSMdjYBgFRALR0KkhV0N4eKhtLhOxCv9+YbrCJnHsmMCmaU63L8XE0N0B/6z/1jB3+foyvWG4ySDV0CAsMPXEnelxcdQOEYJAoGXKknvf5OWF5k2Tvv3mzp1Rh/AtmDnzdo6yslDctKQ7Gffv89+efvJmdWEhHZ1Q////fyYmAbdp728zrF0reGWa523+kyeJ1U10IsRlseBM8bQ7xvPmMb1kVGVYwMXFp825jeWDvT3NfSw4c1rqbaMFC4T0p4vcXrB9u/z/+f/v/+fgGHIWEx0FQrziP+88nTWL8eT/NgZ2UdF3F3+bMJwJCHjImMioyPjjBw19DnWA5NRft08nJzMwTPK4ncPOTnMLRwwAAPwchiOWi4jzAAAAJXRFWHRkYXRlOmNyZWF0ZQAyMDIwLTA3LTA2VDIxOjI1OjU4KzA4OjAwKTWDHAAAACV0RVh0ZGF0ZTptb2RpZnkAMjAyMC0wNy0wNlQyMToyNTo1OCswODowMFhoO6AAAABQdEVYdHN2ZzpiYXNlLXVyaQBmaWxlOi8vL2hvbWUvYWRtaW4vaWNvbi1mb250L3RtcC9pY29uX3NhOWJoNGE4bWYvaWNvbnlvdWppYW50b3Uuc3Zn9/UvMgAAAABJRU5ErkJggg==';
+        },
+        get url4() {
+          return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQEAYAAABPYyMiAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAAAZiS0dEAAAAAAAA+UO7fwAAAAlwSFlzAAAASAAAAEgARslrPgAAAhtJREFUSMftlEFI01Ecx39v0xVjh97Lgg5CUAcP1cmCUbtErv0lEHSTQogKPCSb7aQbiA0X8Rekg/j/rXXYqTEnlnj4w0aHwhXiLsE/Bvp/r6CDgkhRYbp09bq43WT/dTCIvrd3+PL5/H6P94Au4gMRXl5mU6ibpZERsBiqYpGfmZxkx/EyN3K5E8lkcq3f6bTar8ZGMuSwnE+nYRQ+Ekc8TqUmuYzF6hVl5Zcps7Oz8hm0wxOPp/zuZ/z7XV3/UxGg5xF5cHiYMUTOpWQGorioqvV6R5YSLabb46GlRIvo2dxkt7HMLxUKxwKav+R3uQ5MhE08bjVXOzpoCq/y3Pb23xNRtC886PXWRKI4KG4uLBy4CF3U/CLs87Ep1PmHcnk/EdKoCHkPAPdUFV4BkFvj45/PDQycfhOJ7NtTsSg+KQpxwYb8OjcHq5AnsWLRLuTaj63OzsY3svdKahtZwi7xOhSqezUvtBVT7e5mg/hQtO3ssDvaBnfruq1hgx5yCkLNzdWj9JEVOV2p1KvJvC1of+RwAAdDXrHZZJgUyMn1deuTI0aEEY/XJrf4cTGKGjcDAdaH38S13V12VtviT7NZgPvypWxq+vfAVCTeCm9v73+wdXBemxYTY2NV8FEnXhCHolHLYAWv82ClwlI4KrrSaYCZGSnt9rrgapiSaONBw6B92jxvHRqy3OtHN2/PZKiBz8WNVKph8F5+AxcPuicpsJgHAAAAJXRFWHRkYXRlOmNyZWF0ZQAyMDIwLTA3LTA2VDIxOjIyOjI0KzA4OjAwBoz7CAAAACV0RVh0ZGF0ZTptb2RpZnkAMjAyMC0wNy0wNlQyMToyMjoyNCswODowMHfRQ7QAAABNdEVYdHN2ZzpiYXNlLXVyaQBmaWxlOi8vL2hvbWUvYWRtaW4vaWNvbi1mb250L3RtcC9pY29uX2p6Yzc2b3cwM2UvamlhbnRvdS1zdmcuc3ZnGvSxYAAAAABJRU5ErkJggg==';
+        },
+
+        get pickerCalender() {
+          return '<div class="calendar">' + this.header + this.content + '</div>';
+        },
+
+        get header() {
+          return '<ul class="header">' +
+            '<li class="picker-btn picker-prev-year" style="background-image:url(' + this.url1 + ')"></li>' +
+            '<li class="picker-btn picker-prev-month" style="background-image:url(' + this.url2 + ')"></li>' +
+            '<li class="picker-date"></li>' +
+            '<li class="picker-btn picker-next-month" style="background-image:url(' + this.url3 + ')"></li>' +
+            '<li class="picker-btn picker-next-year" style="background-image:url(' + this.url4 + ')"></li>' +
+            '</ul>'
+        },
+
+        get content() {
+          var daysTemplate = '', i = 0;
+          while (i < 42) {
+            daysTemplate += '<li day-index="' + i + '"></li>';
+            i++;
+          }
+
+          var weeks = ['一', '二', '三', '四', '五', '六', '日',];
+          var weekTemplate = '', i = 0;
+          while (i < 7) {
+            weekTemplate += '<li>' + weeks[i] + '</li>';
+            i++;
+          }
+
+          return '<div class="content">' +
+            ' <ul class="picker-weeks">' +
+            weekTemplate +
+            '</ul>' +
+            '<ul class="picker-days">' +
+            daysTemplate +
+            ' </ul>' +
+            '</div>'
+        },
+
+        get btn() {
+
+
+
+        },
+
+      };
+
+      Calender.prototype.getShowDaysArr = function () {
+        var fristDay = new Date(this.showDate.year, this.showDate.month, 1);
+        var oneDay = 24 * 60 * 60 * 1000,
+          week = fristDay.getDay(),
+          fristWeek = week ? week : 7,  // 周日改爲7
+          startDay = +fristDay - fristWeek * oneDay,
+          i = 0,
+          day,
+          DaysArr = [];
+
+        while (i <= 42) {
+          i++;  // 周一開始
+          day = new Date(+startDay + oneDay * i);
+          DaysArr.push(day);
+        }
+        this.showDaysArr = DaysArr;
+
+        fristDay = null;
+        oneDay = null;
+        fristWeek = null;
+        startDay = null;
+        day = null;
+        DaysArr = null;
+        return this.showDaysArr;
+      };
+
+      Calender.prototype.renderDays = function () {
+        var daysUl = this.el.getElementsByClassName("picker-days")[0];
+        var date = this.showDaysArr;
+        for (var i = 0; i < 42; i++) {
+          isCur = this.isCur(date[i]),
+            select = isCur.select ? 'is-select' : '',
+            month = isCur.month ? '' : ' other-month ',
+            day = isCur.day ? ' is-today' : '',
+            divClass = select + month + day;
+
+          daysUl.children[i].innerText = this.showDaysArr[i].getDate();
+          daysUl.children[i].className = divClass;
+          daysUl.children[i].setAttribute('day-index', i);
+        }
+      };
+
+      Calender.prototype.isCur = function (date) {
+        var todayDate = new Date(),
+          todayYear = todayDate.getFullYear(),
+          todayMonth = todayDate.getMonth(),
+          today = todayDate.getDate();
+
+        var showDateYear = date.getFullYear(),
+          showDateMonth = date.getMonth(),
+          showDateDay = date.getDate();
+
+        var
+          shwoYear = this.showDate.year,
+          showMonth = this.showDate.month;
+
+        var chooseDate = new Date(this.chooseDay),
+          chooseYear = chooseDate.getFullYear(),
+          chooseMonth = chooseDate.getMonth(),
+          chooseDay = chooseDate.getDate();
+
+        return {
+          select: (chooseYear == showDateYear) && (chooseMonth == showDateMonth) && (chooseDay == showDateDay),
+          month: (showDateYear == shwoYear) && (showMonth == showDateMonth),
+          day: (today == showDateDay) && (todayMonth == showDateMonth) && (todayYear == showDateYear)
+        }
+      };
+
+      Calender.prototype.handleYear = function (isNext) {
+        isNext = isNext ? Number(isNext) : -1;
+        this.showDate.year += isNext;
+        this.renderDate();
+      };
+
+      Calender.prototype.handleMonth = function (isNext) {
+        var showDate = new Date(this.showDate.year, this.showDate.month, this.showDate.day);
+        isNext = isNext ? 1 : -1;
+        showDate.setMonth((this.showDate.month + isNext));
+
+        this.showDate.year = showDate.getFullYear();
+        this.showDate.month = showDate.getMonth();
+        this.renderDate();
+      };
+
+      Calender.prototype.handleDay = function (index) {
+        var selectDay = this.showDaysArr[index];
+
+        this.chooseDay = this.getChooseDay(selectDay);
+        this.el.children[0].children[1].value = this.chooseDay;
+
+        var month = selectDay.getMonth();
+        var year = selectDay.getFullYear();
+
+        if (month != this.showDate.month) {
+          this.showDate.month = month;
+          if (year != this.showDate.year) {
+            this.showDate.year = year
+          }
+        }
+        move(this.el.children[1], { "opacity": 0 }, fn, 80);
+        var self = this;
+        function fn() {
+          self.changePanel(false)
+        }
+        this.cb && this.cb(this.chooseDay); // 修改完日期的回調函數
+        this.renderDate();
+      };
+
+      Calender.prototype.renderDate = function () {
+        this.el.getElementsByClassName("picker-date")[0].innerText =
+          this.showDate.year + '年' + (this.showDate.month + 1) + '月';
+        this.getShowDaysArr();
+        this.renderDays();
+      }
+
+      Calender.prototype.changePanel = function (status) {
+        this.showPanel = status;
+        this.el.children[1].style.display = status ? 'block' : 'none';
+        this.el.children[1].style.opacity = status ? 1 : 0;
+      };
+    };
+
+
+
+
+    new Calender('date-picker', (v) => {
+      console.log(v);
+    }).run();
+
+
+
+    function move(obj, json, cb, time) {
+      clearInterval(obj.timer);// 定時器防抖
+      obj.timer = setInterval(() => {
+        var isStop = true;  // 動畫結束判斷值
+        // 執行動畫
+        Object.keys(json).forEach(attr => {
+          var now = 0;
+          if (attr == "opacity") {
+            now = parseInt(getStyle(obj, attr) * 100);
+          } else {
+            now = parseInt(getStyle(obj, attr));
+          }
+          var speed = (json[attr] - now) / 6;
+          speed = speed > 0 ? Math.ceil(speed) : Math.floor(speed);
+          var current;  //元素樣式值
+          current = now + speed;
+          if (attr == "opacity") {
+            obj.style[attr] = current / 100;
+          } else {
+            obj.style[attr] = current + "px";
+          }
+          if (current !== json[attr]) {
+            isStop = false;
+          }
+        });
+        if (isStop) {
+          clearInterval(obj.timer);
+
+          cb && cb();
+        }
+      }, time);
+    }
+
+    function getStyle(obj, attr) {
+      if (obj.currenStyly) {
+        return obj.currenStyly[attr];
+      } else {
+        return getComputedStyle(obj, null)[attr];
+      }
+    }
+
+
+  </script>
+
+</body>
+
+</html>
