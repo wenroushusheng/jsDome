@@ -1,0 +1,103 @@
+// 工具函数
+
+var ObjectKeys = Object.keys || function (obj) {
+  if (typeof obj !== 'object' && typeof obj !== 'function' || obj === null) {
+    throw new TypeError('此方法的参数必須是对象');
+  }
+  var hasOwnProperty = Object.prototype.hasOwnProperty,
+    result = [];
+  for (var prop in obj) {
+    hasOwnProperty.call(obj, prop) && result.push(prop);
+  }
+  var hasDontEnumBug = !({ toString: null }).propertyIsEnumerable('toString');
+  if (hasDontEnumBug) {
+    var dontEnums = [
+      'toString',
+      'toLocaleString',
+      'valueOf',
+      'hasOwnProperty',
+      'isPrototypeOf',
+      'propertyIsEnumerable',
+      'constructor'];
+    for (var i = 0, l = dontEnums.length; i < l; i++) {
+      hasOwnProperty.call(obj, dontEnums[i]) && result.push(dontEnums[i]);
+    }
+  }
+  return result;
+  //上面的代码在IE7（也许IE8也是）下有个问题，
+  //如果传入一个来自其他 window 对象下的对象，不可枚举的属性也会获取到
+};
+var getStyle = function (obj, attr) {
+  getStyle = window.getComputedStyle ?
+    function (obj, attr) {
+      return window.getComputedStyle(obj, null)[attr];
+    } :
+    function (obj, attr) {
+      return obj.currenStyly[attr];
+    };
+  return getStyle(obj, attr);
+}
+
+function getCurrentValue(currentValue, targetValue, isOpacity) {
+  // 当前属性值
+  var now = parseInt(currentValue) * (isOpacity ? 100 : 1);
+  var speed = (targetValue - now) / 6;
+  // 极值处理
+  var numHandle = speed > 0 ? Math.ceil : Math.floor;
+  return numHandle(speed) + now;
+}
+
+function getAttrValue(currentValue, isOpacity) {
+  if (isOpacity) return currentValue / 100;
+  return currentValue + "px";
+}
+
+function getNewAttrValue(obj, json, attr, isStop) {
+  var isOpacity = attr == "opacity";
+  var oldValue = getStyle(obj, attr);
+  var targetValue = json[attr];
+  var newValue = getCurrentValue(oldValue, targetValue, isOpacity);
+
+  (newValue !== targetValue) && (isStop = false);
+
+  return {
+    attrValue: getAttrValue(newValue, isOpacity),
+    isStop: isStop
+  }
+}
+
+  // 核心功能实现
+
+// 属性 opacity 是0~100;
+function animate(obj, json, cb) {
+  clearInterval(obj.timer); // 防抖
+  obj.timer = setInterval(function () {
+
+    var isStop = true;
+    Object.keys(json).forEach(function (attr) {
+      var retObj = getNewAttrValue(obj, json, attr, isStop);
+      obj.style[attr] = retObj.attrValue;
+      isStop = retObj.isStop;
+    });
+    // 性能优化 和 完成动画的回调
+    isStop && (clearInterval(obj.timer), cb && cb());
+  }, 30);
+}
+
+ //  构造器
+var Swiper = (function () {
+  function Ctor(option) {
+    option = option || {};
+    this.elm = getBox(option.elm);
+    this.cb = option.cb || noop;
+    this.time = option.time || 2500;
+    this._init();
+  }
+
+  protoMixin(Ctor);
+
+  return Ctor;
+})();
+
+
+
