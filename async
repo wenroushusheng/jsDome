@@ -1,0 +1,17 @@
+function async(generator) {
+  var iterator = generator();
+
+  try {
+    handle(iterator.next());
+  }
+  catch (e) { iterator.throw(e); }
+
+  function handle(result) {
+    if (!result.done) {
+      Promise
+        .resolve(result.value)
+        .then(res => handle(iterator.next(res)))
+        .catch(err => iterator.throw(err));
+    }
+  }
+}
