@@ -79,7 +79,7 @@ const FakePromise = (function () {
        resolveValue(v, deferPromiseObj);
        return deferPromiseObj.promise
       }
-      FakePromise.none = function () {
+      FakePromise.none = function (iterable) {
         return new FakePromise((resolve, reject) => {
           let index = 0;
           for (const promise of iterable) {
@@ -109,7 +109,7 @@ const FakePromise = (function () {
           const result = new Array(index);
         });
       }
-      FakePromise.last = function () {
+      FakePromise.last = function (iterable) {
         return new FakePromise((resolve, rejecr) => {
           let index = 0;
           let elementCount = 0;
@@ -134,7 +134,7 @@ const FakePromise = (function () {
         });
 
       }
-      FakePromise.first = function () {
+      FakePromise.first = function (iterable) {
         return new FakePromise(function (resolve, reject) {
           let index = 0;
           for (const promise of iterable) {
@@ -154,7 +154,7 @@ const FakePromise = (function () {
 
         });
       }
-      FakePromise.race = function () {
+      FakePromise.race = function (iterable) {
         return new FakePromise((resolve, reject) => {
           let index = 0;
           for (const promise of iterable) {
@@ -179,7 +179,7 @@ const FakePromise = (function () {
 
         });
       }
-      FakePromise.all = function () {
+      FakePromise.all = function (iterable) {
         return new FakePromise((resolve, reject) => {
           let index = 0;
 
