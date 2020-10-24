@@ -1,0 +1,336 @@
+@mixin flex($hov:space-between, $col:center) {
+  display: flex;
+  justify-content: $hov;
+  align-items: $col;
+}
+
+@mixin bgImg ($w:0, $h:0, $img:'') {
+  display: inline-block;
+  width: $w;
+  height: $h;
+  background: url($img) no-repeat center;
+  background-size: contain;
+}
+
+@mixin weiBgImg ($w:0, $h:0, $img:'', $l:0, ) {
+  position: absolute;
+  display: inline-block;
+  background-repeat: no-repeat;
+  background-size: cover;
+  width: 40px;
+  height: 40px;
+  left: -18%;
+  border-radius: 50%;
+}
+
+
+@mixin sanjiao ($length, $size, $color, $deg) {
+  content: "";
+  display: block;
+  width: $length;
+  height: $length;
+  border-right: $size solid $color;
+  border-top: $size solid $color;
+  transform: rotate($deg);
+}
+
+@mixin sanJiaoXing ($size, $color, $deg:0) {
+  content: "";
+  width: 0;
+  height: 0;
+  border-top: $size solid $color;
+  border-right: $size solid transparent;
+  border-left: $size solid transparent;
+  border-radius: 35%;
+  transform: rotate($deg);
+}
+
+@mixin position($pos:absolute, $t:0, $l:0, $w:100%, $h:100%) {
+  position: $pos;
+  top: $t;
+  left: $l;
+  width: $w;
+  height: $h;
+}
+
+@mixin disFlex($fl:left, $fw:wrap, $jt:space-between) {
+  display: flex;
+  float: $fl;
+  flex-wrap: $fw;
+  justify-content: $jt;
+}
+
+@mixin upload-body($imgw:0, $imgh:0, $img:'',
+  $l:37%, $t:10%) {
+  input {
+    position: absolute;
+    width: 99%;
+    height: 98%;
+    z-index: 2;
+    opacity: 0;
+  }
+
+  span {
+    position: absolute;
+    height: 16px;
+    font-size: 16px;
+    left: $l;
+    top: $t;
+
+    &:before {
+      content: "";
+      @include bgImg($imgw, $imgh, $img);
+      display: flex;
+      margin: 15px auto;
+    }
+  }
+}
+
+// 伪元素 实现➕ ❌
+
+@mixin colrow($pos:absolute, $top:0, $left:0, $h:0, $w:0,
+  $color:#fff,
+  $rotateA:0, $rotateB:0) {
+
+  &:before,
+  &:after {
+    content: " ";
+    position: $pos;
+    top: $top;
+    left: $left;
+    height: $h;
+    width: $w;
+    cursor: pointer;
+    background-color: $color;
+  }
+
+  &:before {
+    transform: rotate($rotateA);
+  }
+
+  &:after {
+    transform: rotate($rotateB);
+  }
+}
+
+;
+
+@mixin jiaHao($t:5%,
+  $l:5%) {
+  position: relative;
+  top: $t;
+  left: $l;
+  @include colrow($pos:absolute,
+    $top: 0,
+    $left: 0,
+    $h: 8px,
+    $w: 2px,
+    $color: #fff,
+    $rotateA: 90deg,
+    $rotateB: 0deg);
+}
+
+
+
+
+@keyframes su-pudding {
+  0% {
+    transform: scale(1.2, 0.8);
+  }
+
+  1% {
+    transform: scale(1.18, 0.82);
+  }
+
+  2% {
+    transform: scale(1.16, 0.84);
+  }
+
+  3% {
+    transform: scale(1.13, 0.87);
+  }
+
+  4% {
+    transform: scale(1.1, 0.9);
+  }
+
+  5% {
+    transform: scale(1.07, 0.93);
+  }
+
+  6% {
+    transform: scale(1.04, 0.96);
+  }
+
+  7% {
+    transform: scale(1.01, 0.99);
+  }
+
+  8% {
+    transform: scale(0.99, 1.01);
+  }
+
+  9% {
+    transform: scale(0.97, 1.03);
+  }
+
+  10% {
+    transform: scale(0.95, 1.05);
+  }
+
+  11% {
+    transform: scale(0.94, 1.06);
+  }
+
+  12% {
+    transform: scale(0.93, 1.07);
+  }
+
+  13% {
+    transform: scale(0.93, 1.07);
+  }
+
+  14% {
+    transform: scale(0.93, 1.07);
+  }
+
+  15% {
+    transform: scale(0.93, 1.07);
+  }
+
+  16% {
+    transform: scale(0.94, 1.06);
+  }
+
+  17% {
+    transform: scale(0.94, 1.06);
+  }
+
+  18% {
+    transform: scale(0.95, 1.05);
+  }
+
+  19% {
+    transform: scale(0.96, 1.04);
+  }
+
+  20% {
+    transform: scale(0.98, 1.02);
+  }
+
+  21% {
+    transform: scale(0.99, 1.01);
+  }
+
+  22% {
+    transform: scale(1, 1);
+  }
+
+  23% {
+    transform: scale(1, 1);
+  }
+
+  24% {
+    transform: scale(1.01, 0.99);
+  }
+
+  25% {
+    transform: scale(1.02, 0.98);
+  }
+
+  26% {
+    transform: scale(1.02, 0.98);
+  }
+
+  27% {
+    transform: scale(1.02, 0.98);
+  }
+
+  28% {
+    transform: scale(1.03, 0.97);
+  }
+
+  29% {
+    transform: scale(1.03, 0.97);
+  }
+
+  30% {
+    transform: scale(1.02, 0.98);
+  }
+
+  31% {
+    transform: scale(1.02, 0.98);
+  }
+
+  32% {
+    transform: scale(1.02, 0.98);
+  }
+
+  33% {
+    transform: scale(1.02, 0.98);
+  }
+
+  34% {
+    transform: scale(1.01, 0.99);
+  }
+
+  35% {
+    transform: scale(1.01, 0.99);
+  }
+
+  36% {
+    transform: scale(1.01, 0.99);
+  }
+
+  37% {
+    transform: scale(1, 1);
+  }
+
+  38% {
+    transform: scale(1, 1);
+  }
+
+  39% {
+    transform: scale(1, 1);
+  }
+
+  40% {
+    transform: scale(0.99, 1.01);
+  }
+
+  41% {
+    transform: scale(0.99, 1.01);
+  }
+
+  42% {
+    transform: scale(0.99, 1.01);
+  }
+
+  43% {
+    transform: scale(0.99, 1.01);
+  }
+
+  44% {
+    transform: scale(0.99, 1.01);
+  }
+
+  45% {
+    transform: scale(0.99, 1.01);
+  }
+
+  46% {
+    transform: scale(0.99, 1.01);
+  }
+
+  47% {
+    transform: scale(0.99, 1.01);
+  }
+
+  48% {
+    transform: scale(0.99, 1.01);
+  }
+
+  49% {
+    transform: scale(1, 1);
+  }
+}

@@ -1,0 +1,111 @@
+@import "./mixin.scss";
+
+
+.clearfix:after {
+  content: "";
+  display: block;
+  height: 0;
+  clear: both;
+  visibility: hidden;
+}
+
+//公共样式
+
+
+.transY {
+  transition: all 0.41s ease-in-out;
+
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 5px rgb(214, 205, 205);
+  }
+}
+
+// 單行文字超出進行省略
+.line-limit-length {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+.icon-close {
+  @include position(
+    $pos: absolute,
+    $h: 30px,
+    $l: 90%,
+    $t: 20px,
+    $w: 30px
+  );
+  @include colrow(
+    $h: 15px,
+    $w: 2px,
+    $color: rgb(153, 211, 238),
+    $rotateA: 45deg,
+    $rotateB: -45deg
+  );
+  &:before,
+  &:after {
+    transition: height 0.41s;
+  }
+  &:hover {
+    &:before,
+    &:after {
+      height: 25px;
+      width: 4px;
+    }
+  }
+}
+
+
+
+
+
+
+.title {
+  width: 100%;
+  height: 24px;
+
+  margin: 30px;
+  margin-bottom: 0;
+  padding-bottom: 30px;
+
+  h2 {
+    color: #003366;
+    font-size: 21px;
+    margin-right: 8px;
+    font-weight: normal;
+  }
+}
+
+.warnCount {
+  color: #0099FF;
+  font-size: 18px;
+  margin: 20px 0 0;
+}
+
+.title-litle {
+  margin-top: 8px;
+  color: #003366;
+  margin-bottom: 12px;
+  font-weight: bold;
+}
+
+.animate-biubiu {
+  animation: su-pudding 1s;
+}
+
+.items-default {
+  width: 80px;
+  margin-right: 28px;
+  cursor: pointer;
+  text-align: center;
+  height: 32px;
+  line-height: 32px;
+}
+
+.items-active {
+  color: #0099FF;
+  border-bottom: 2px solid #0099FF;
+  font-weight: bold;
+}
